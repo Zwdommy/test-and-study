@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Meeting Room Statistics">
+    <meta name="keywords" content="admin,dashboard">
+    <meta name="author" content="pixelstrap">
+    <link rel="icon" th:href="@{/images/favicon.png}" type="image/x-icon">
+    <link rel="shortcut icon" th:href="@{/images/favicon.png}" type="image/x-icon">
+    <title>会议室预定统计</title>
+    <!-- Google font-->
+    <link href="https://fonts.googleapis.com/css?family=Rubik:400,400i,500,500i,700,700i&amp;display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,500,500i,700,700i,900&amp;display=swap" rel="stylesheet">
+    <!-- Bootstrap css-->
+    <link rel="stylesheet" type="text/css" th:href="@{/css/vendors/bootstrap.css}">
+    <!-- App css-->
+    <link rel="stylesheet" type="text/css" th:href="@{/css/style.css}">
+    <link id="color" rel="stylesheet" th:href="@{/css/color-1.css}" media="screen">
+    <!-- Responsive css-->
+    <link rel="stylesheet" type="text/css" th:href="@{/css/responsive.css}">
+    <!--axios-->
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <script th:src="@{/js/highcharts.js}"></script>
+    <script th:src="@{/js/highcharts-3d.js}"></script>
+    <script th:src="@{/js/exporting.js}"></script>
+    <script src="https://code.hcharts.cn/plugins/zh_cn.js"></script>
+    <script th:src="@{/webjars/jquery/3.3.1/jquery.js}"></script>
+</head>
+<body>
+    <div class="page-body">
+        <div class="container-fluid">
+            <div class="page-title">
+                <div class="row">
+                    <div class="col-6">
+                        <h3>会议室预定统计</h3>
+                    </div>
+                    <div class="col-6">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="index.html"><i data-feather="home"></i></a></li>
+                            <li class="breadcrumb-item">统计分析</li>
+                            <li class="breadcrumb-item active">会议室预定统计</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Container-fluid starts-->
+        <div class="container-fluid">
+            <div class="row">
+                <!-- 使用率饼图 -->
+                <div class="col-sm-12 col-xl-6">
+                    <div class="card">
+                        <div class="card-header pb-0">
+                            <h3>会议室使用率</h3>
+                        </div>
+                        <div class="card-body">
+                            <div id="roomUtilization" style="height: 400px"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 预定次数柱状图 -->
+                <div class="col-sm-12 col-xl-6">
+                    <div class="card">
+                        <div class="card-header pb-0">
+                            <h3>预定次数统计</h3>
+                        </div>
+                        <div class="card-body">
+                            <div id="bookingCount" style="height: 400px"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 详细统计数据表格 -->
+                <div class="col-sm-12">
+                    <div class="card">
+                        <div class="card-header pb-0">
+                            <h3>详细统计数据</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>会议室名称</th>
+                                            <th>预定次数</th>
+                                            <th>总参会人数</th>
+                                            <th>使用率</th>
+                                            <th>最受欢迎时段</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="statsTableBody">
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 获取统计数据并展示图表
+        axios({
+            method: "get",
+            url: "/meetingRoom/getStatistics"
+        }).then(function(response) {
+            const stats = response.data;
+            
+            // 渲染使用率饼图
+            Highcharts.chart('roomUtilization', {
+                chart: {
+                    type: 'pie',
+                    options3d: {
+                        enabled: true,
+                        alpha: 45
+                    }
+                },
+                title: {
+                    text: '会议室使用率分布'
+                },
+                plotOptions: {
+                    pie: {
+                        innerSize: 100,
+                        depth: 45
+                    }
+                },
+                series: [{
+                    name: '使用率',
+                    data: stats.map(item => [item.roomName, item.utilizationRate])
+                }]
+            });
+            
+            // 渲染预定次数柱状图
+            Highcharts.chart('bookingCount', {
+                chart: {
+                    type: 'column'
+                },
+                title: {
+                    text: '会议室预定次数'
+                },
+                xAxis: {
+                    categories: stats.map(item => item.roomName)
+                },
+                yAxis: {
+                    title: {
+                        text: '预定次数'
+                    }
+                },
+                series: [{
+                    name: '预定次数',
+                    data: stats.map(item => item.bookingCount)
+                }]
+            });
+            
+            // 渲染统计表格
+            const tableBody = document.getElementById('statsTableBody');
+            tableBody.innerHTML = stats.map(item => `
+                <tr>
+                    <td>${item.roomName}</td>
+                    <td>${item.bookingCount}</td>
+                    <td>${item.totalAttendees}</td>
+                    <td>${item.utilizationRate}%</td>
+                    <td>${item.mostPopularTimeSlot}</td>
+                </tr>
+            `).join('');
+        });
+    </script>
+</body>
+</html> 

@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zpy.mapper.RoomStatsMapper">
+    <select id="getRoomUsageStats" resultType="com.zpy.pojo.RoomUsageStats">
+        SELECT 
+            r.room_name as roomName,
+            COALESCE(SUM(
+                TIMESTAMPDIFF(MINUTE, 
+                    CASE 
+                        WHEN rb.start_time &lt; #{startTime} THEN #{startTime}
+                        ELSE rb.start_time 
+                    END,
+                    CASE 
+                        WHEN rb.end_time &gt; #{endTime} THEN #{endTime}
+                        ELSE rb.end_time 
+                    END
+                )
+            ), 0) as occupiedTime,
+            TIMESTAMPDIFF(MINUTE,
+                #{startTime},
+                #{endTime}
+            ) * 
+            TIMESTAMPDIFF(MINUTE,
+                r.open_time,
+                r.close_time
+            ) / (24 * 60) as availableTime,
+            COALESCE(
+                SUM(
+                    TIMESTAMPDIFF(MINUTE, 
+                        CASE 
+                            WHEN rb.start_time &lt; #{startTime} THEN #{startTime}
+                            ELSE rb.start_time 
+                        END,
+                        CASE 
+                            WHEN rb.end_time &gt; #{endTime} THEN #{endTime}
+                            ELSE rb.end_time 
+                        END
+                    )
+                ) * 100.0 / 
+                (TIMESTAMPDIFF(MINUTE, #{startTime}, #{endTime}) * 
+                TIMESTAMPDIFF(MINUTE, r.open_time, r.close_time) / (24 * 60)),
+                0
+            ) as usageRate,
+            #{startTime} as startTime,
+            #{endTime} as endTime,
+            r.status
+        FROM room r
+        LEFT JOIN room_booking rb ON r.id = rb.room_id
+            AND rb.start_time &lt; #{endTime}
+            AND rb.end_time &gt; #{startTime}
+            AND rb.status = '1'
+        GROUP BY r.id, r.room_name, r.status, r.open_time, r.close_time
+        ORDER BY usageRate DESC
+    </select>
+</mapper> 

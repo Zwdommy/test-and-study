@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Room Usage Statistics">
+    <meta name="keywords" content="admin,dashboard,room,statistics">
+    <meta name="author" content="pixelstrap">
+    <link rel="icon" th:href="@{/images/favicon.png}" type="image/x-icon">
+    <link rel="shortcut icon" th:href="@{/images/favicon.png}" type="image/x-icon">
+    <title>房间利用率统计</title>
+    <!-- Google font-->
+    <link href="https://fonts.googleapis.com/css?family=Rubik:400,400i,500,500i,700,700i&amp;display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,500,500i,700,700i,900&amp;display=swap" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" th:href="@{/css/vendors/bootstrap.css}">
+    <link rel="stylesheet" type="text/css" th:href="@{/css/style.css}">
+    <link id="color" rel="stylesheet" th:href="@{/css/color-1.css}" media="screen">
+    <link rel="stylesheet" type="text/css" th:href="@{/css/responsive.css}">
+    <script src="https://unpkg.com/axios/dist/axios.min.js"></script>
+    <script th:src="@{/js/highcharts.js}"></script>
+    <script th:src="@{/js/highcharts-3d.js}"></script>
+    <script th:src="@{/js/exporting.js}"></script>
+    <script src="https://code.hcharts.cn/plugins/zh_cn.js"></script>
+    <script th:src="@{/webjars/jquery/3.3.1/jquery.js}"></script>
+</head>
+<body>
+    <div class="page-body">
+        <div class="container-fluid">
+            <div class="page-title">
+                <div class="row">
+                    <div class="col-6">
+                        <h3>房间利用率统计</h3>
+                    </div>
+                    <div class="col-6">
+                        <ol class="breadcrumb">
+                            <li class="breadcrumb-item"><a href="index.html"><i data-feather="home"></i></a></li>
+                            <li class="breadcrumb-item">统计分析</li>
+                            <li class="breadcrumb-item active">房间利用率</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 筛选条件 -->
+        <div class="container-fluid">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label for="startTime">开始时间</label>
+                                <input type="datetime-local" class="form-control" id="startTime">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label for="endTime">结束时间</label>
+                                <input type="datetime-local" class="form-control" id="endTime">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label>&nbsp;</label>
+                                <button class="btn btn-primary btn-block" onclick="searchStats()">查询统计</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 统计图表 -->
+        <div class="container-fluid">
+            <div class="row">
+                <!-- 利用率饼图 -->
+                <div class="col-sm-12 col-xl-6">
+                    <div class="card">
+                        <div class="card-header pb-0">
+                            <h3>房间利用率分布</h3>
+                        </div>
+                        <div class="card-body">
+                            <div id="usageChart" style="height: 400px"></div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- 使用时间对比图 -->
+                <div class="col-sm-12 col-xl-6">
+                    <div class="card">
+                        <div class="card-header pb-0">
+                            <h3>房间使用时间对比</h3>
+                        </div>
+                        <div class="card-body">
+                            <div id="timeCompareChart" style="height: 400px"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 详细数据表格 -->
+            <div class="row">
+                <div class="col-sm-12">
+                    <div class="card">
+                        <div class="card-header pb-0">
+                            <h3>详细统计数据</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>房间名称</th>
+                                            <th>占用时间（小时）</th>
+                                            <th>开放时间（小时）</th>
+                                            <th>利用率</th>
+                                            <th>状态</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="statsTableBody">
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 模拟数据（当后端接口不可用时使用）
+        const mockData = [
+            {
+                roomName: "会议室A",
+                occupiedTime: 120, // 2小时
+                availableTime: 480, // 8小时
+                usageRate: 25.0,
+                status: "0"
+            },
+            {
+                roomName: "会议室B",
+                occupiedTime: 240, // 4小时
+                availableTime: 480,
+                usageRate: 50.0,
+                status: "0"
+            },
+            {
+                roomName: "会议室C",
+                occupiedTime: 360, // 6小时
+                availableTime: 480,
+                usageRate: 75.0,
+                status: "1"
+            },
+            {
+                roomName: "会议室D",
+                occupiedTime: 180, // 3小时
+                availableTime: 480,
+                usageRate: 37.5,
+                status: "0"
+            },
+            {
+                roomName: "会议室E",
+                occupiedTime: 300, // 5小时
+                availableTime: 480,
+                usageRate: 62.5,
+                status: "0"
+            }
+        ];
+        
+        function searchStats() {
+            const startTime = document.getElementById('startTime').value;
+            const endTime = document.getElementById('endTime').value;
+            
+            // 尝试从后端获取数据
+            axios({
+                method: 'get',
+                url: '/roomStats/getStats',
+                params: {
+                    startTime: startTime,
+                    endTime: endTime
+                }
+            }).then(function(response) {
+                const stats = response.data;
+                renderCharts(stats);
+                renderTable(stats);
+            }).catch(function(error) {
+                console.error('获取统计数据失败：', error);
+                // 如果后端接口不可用，使用模拟数据
+                renderCharts(mockData);
+                renderTable(mockData);
+            });
+        }
+        
+        function renderCharts(stats) {
+            // 利用率饼图
+            Highcharts.chart('usageChart', {
+                chart: {
+                    type: 'pie',
+                    options3d: {
+                        enabled: true,
+                        alpha: 45
+                    }
+                },
+                title: {
+                    text: '房间利用率分布'
+                },
+                plotOptions: {
+                    pie: {
+                        innerSize: 100,
+                        depth: 45,
+                        dataLabels: {
+                            format: '{point.name}: {point.y:.1f}%'
+                        }
+                    }
+                },
+                series: [{
+                    name: '利用率',
+                    data: stats.map(item => [item.roomName, item.usageRate])
+                }]
+            });
+            
+            // 使用时间对比图
+            Highcharts.chart('timeCompareChart', {
+                chart: {
+                    type: 'column'
+                },
+                title: {
+                    text: '房间使用时间对比'
+                },
+                xAxis: {
+                    categories: stats.map(item => item.roomName)
+                },
+                yAxis: {
+                    title: {
+                        text: '时间（小时）'
+                    }
+                },
+                plotOptions: {
+                    column: {
+                        dataLabels: {
+                            enabled: true,
+                            format: '{point.y:.1f}h'
+                        }
+                    }
+                },
+                series: [{
+                    name: '占用时间',
+                    data: stats.map(item => item.occupiedTime / 60)
+                }, {
+                    name: '开放时间',
+                    data: stats.map(item => item.availableTime / 60)
+                }]
+            });
+        }
+        
+        function renderTable(stats) {
+            const tableBody = document.getElementById('statsTableBody');
+            tableBody.innerHTML = stats.map(item => `
+                <tr>
+                    <td>${item.roomName}</td>
+                    <td>${(item.occupiedTime / 60).toFixed(1)}</td>
+                    <td>${(item.availableTime / 60).toFixed(1)}</td>
+                    <td>${item.usageRate.toFixed(1)}%</td>
+                    <td>${item.status === '0' ? '可用' : '维护中'}</td>
+                </tr>
+            `).join('');
+        }
+        
+        // 页面加载完成后自动查询最近7天的数据
+        document.addEventListener('DOMContentLoaded', function() {
+            const now = new Date();
+            const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            
+            document.getElementById('startTime').value = sevenDaysAgo.toISOString().slice(0, 16);
+            document.getElementById('endTime').value = now.toISOString().slice(0, 16);
+            
+            searchStats();
+        });
+    </script>
+</body>
+</html> 

@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zpy.mapper.MeetingRoomMapper">
+    <select id="getStatistics" resultType="com.zpy.pojo.MeetingRoomStats">
+        SELECT 
+            mr.room_name as roomName,
+            COUNT(mrb.id) as bookingCount,
+            SUM(mrb.attendees) as totalAttendees,
+            ROUND(COUNT(mrb.id) * 100.0 / 
+                (SELECT COUNT(*) FROM meeting_room_booking 
+                WHERE room_id = mr.id AND status = '1'), 2) as utilizationRate,
+            (SELECT time_slot 
+             FROM meeting_room_booking b2 
+             WHERE b2.room_id = mr.id 
+             GROUP BY time_slot 
+             ORDER BY COUNT(*) DESC 
+             LIMIT 1) as mostPopularTimeSlot
+        FROM meeting_room mr
+        LEFT JOIN meeting_room_booking mrb ON mr.id = mrb.room_id
+        WHERE mrb.status = '1'
+        GROUP BY mr.id, mr.room_name
+    </select>
+</mapper> 
